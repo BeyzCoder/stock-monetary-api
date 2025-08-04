@@ -1,5 +1,6 @@
 import os
 
+# v1 database configuration.
 DB_CONFIG = [
     os.getenv('DB_USER'),
     os.getenv('DB_PASSWORD'),

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, status
-from fastapi.responses import JSONResponse 
+from fastapi.responses import Response, JSONResponse 
 
 from app.api.v1.routes import route_statements
 
@@ -15,3 +15,7 @@ async def root():
         status_code=status.HTTP_200_OK,
         media_type='application/json'
     )
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)  # No Content
