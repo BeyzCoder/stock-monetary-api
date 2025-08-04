@@ -1,11 +1,11 @@
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse 
 
-from api.v1.routes import statements
+from app.api.v1.routes import route_statements
 
 app = FastAPI()
 # routers connected.
-app.include_router(statements.router, prefix="/api/v1/statements")
+app.include_router(route_statements.router, prefix="/api/v1/statements")
 
 
 @app.get('/')
