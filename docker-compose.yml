@@ -1,31 +1,64 @@
 version: "3"
 
 services:
-  db:
+  reverse-proxy:
+    image: traefik:v3.1
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=syricreth@srv987752.hstgr.cloud"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik
+
+  company-db:
     image: postgres:15
-    container_name: companyfactsDB
+    restart: always  
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    expose:
+      - 5432
     volumes:
-      - ./company_dump.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./dump.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - backend
+    healthcheck:  
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s   
+      timeout: 5s      
+      retries: 5       
+      start_period: 30s 
 
-  fastapi:
+  stock-api:
     build:
       context: .
       dockerfile: app/Dockerfile
-    container_name: stockfinanceAPI
-    ports:
-      - "8000:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stock-api.rule=Host(`srv987752.hstgr.cloud`)"
+      - "traefik.http.routers.stock-api.entrypoints=websecure"
+      - "traefik.http.routers.stock-api.tls.certresolver=myresolver"
     depends_on:
-      - db
+      company-db:
+        condition: service_healthy  
     networks:
       - backend
+      - traefik
     environment:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
@@ -33,5 +66,9 @@ services:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
     
+volumes:
+  letsencrypt:
+
 networks:
   backend:
+  traefik:
